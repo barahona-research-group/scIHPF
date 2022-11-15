@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+### Adpated from scHPF by Blei et al 2017 (https://github.com/simslab/scHPF) 
+
 import functools
 import ctypes
 import numpy as np
@@ -799,7 +801,14 @@ class scIHPF(BaseEstimator):
             genes.append(temp)
         return genes
 
-    def pois_llh_pointwise(self, X, theta=None, beta=None):
+    def pois_llh_pointwise(
+        self,
+        X,
+        theta=None,
+        beta=None,
+        delta=None,
+        datasetno=0,
+    ):
         """Poisson log-likelihood (for each nonzero data)
 
         Attempt to use numba/cffi/gsl, use numpy otherwise
@@ -817,15 +826,21 @@ class scIHPF(BaseEstimator):
         -------
         llh: ndarray
         """
-        theta = self.theta if theta is None else theta
+        theta = self.theta[datasetno] if theta is None else theta
         beta = self.beta if beta is None else beta
-        return ls.pois_llh_pointwise(X=X, theta=theta, beta=beta)
+        delta = self.delta[datasetno] if delta is None else delta
+        return pois_llh_pointwise2(X=X, theta=theta, beta=beta, delta=delta)
 
-    def mean_negative_pois_llh(X, theta=None, beta=None, **kwargs):
+    def mean_negative_pois_llh(
+        self, X, theta=None, beta=None, delta=None, datasetno=0, **kwargs
+    ):
         """Convenience method for mean negative llh of nonzero entries"""
-        theta = self.theta if theta is None else theta
+        theta = self.theta[datasetno] if theta is None else theta
         beta = self.beta if beta is None else beta
-        return ls.mean_negative_pois_llh(X=X, theta=theta, beta=beta)
+        delta = self.delta[datasetno] if delta is None else delta
+        return mean_negative_pois_llh2(
+            X=X, theta=theta, beta=beta, delta=delta, datasetno=datasetno
+        )
 
     def fit(self, X, **kwargs):
         """Fit an scHPF model
@@ -883,6 +898,7 @@ class scIHPF(BaseEstimator):
         checkstep_function=None,
         dataset_ratio=0.1,
         verbose=None,
+        **kwargs
     ):
         """Combined internal fit/transform function
 
@@ -1361,7 +1377,8 @@ def combine_across_cells(x, y, y_ixs):
 def run_trials(
     X,
     nfactors,
-    ntrials=15,
+    random_seed=0,
+    ntrials=5,
     min_iter=30,
     max_iter=500,
     check_freq=10,
@@ -1430,7 +1447,7 @@ def run_trials(
     best_loss, best_model, best_t = np.finfo(np.float64).max, None, None
     for t in range(ntrials):
         # make a new model
-        np.random.seed(t)
+        np.random.seed(t+random_seed)
         print("scIHPF running with seed {}".format(t))
         model = scIHPF(
             nfactors=nfactors,
