@@ -1,8 +1,11 @@
-""" Integrative Non-negative matrix factorization
+""" Integrative Non-negative matrix factorization 
 """
 #  Author: Thomas Wong
 #         Mauricio Barahona
 # License: BSD 3 clause
+
+
+## Adpated from NMF implementation in sklearn 
 
 # Author: Vlad Niculae
 #         Lars Buitinck
@@ -26,8 +29,6 @@ from sklearn.utils import check_random_state, check_array
 from sklearn.utils.extmath import randomized_svd, safe_sparse_dot, squared_norm
 from sklearn.utils.validation import check_is_fitted, check_non_negative
 from sklearn.utils.validation import _deprecate_positional_args
-
-
 
 
 EPSILON = np.finfo(np.float32).eps
@@ -62,11 +63,13 @@ def trace_dot(X, Y):
 def _check_init(A, shape, whom):
     A = check_array(A)
     if np.shape(A) != shape:
-        raise ValueError('Array with wrong shape passed to %s. Expected %s, '
-                         'but got %s ' % (whom, shape, np.shape(A)))
+        raise ValueError(
+            "Array with wrong shape passed to %s. Expected %s, "
+            "but got %s " % (whom, shape, np.shape(A))
+        )
     check_non_negative(A, whom)
     if np.max(A) == 0:
-        raise ValueError('Array passed to %s is full of zeros.' % whom)
+        raise ValueError("Array passed to %s is full of zeros." % whom)
 
 
 def _beta_divergence(X, W, H, V, beta, square_root=False):
@@ -112,11 +115,11 @@ def _beta_divergence(X, W, H, V, beta, square_root=False):
         # Avoid the creation of the dense np.dot(W, H+V) if X is sparse.
         if sp.issparse(X):
             norm_X = np.dot(X.data, X.data)
-            norm_WH = trace_dot(np.dot(np.dot(W.T, W), H+V), H+V)
-            cross_prod = trace_dot((X * (H+V).T), W)
-            res = (norm_X + norm_WH - 2. * cross_prod) / 2.
+            norm_WH = trace_dot(np.dot(np.dot(W.T, W), H + V), H + V)
+            cross_prod = trace_dot((X * (H + V).T), W)
+            res = (norm_X + norm_WH - 2.0 * cross_prod) / 2.0
         else:
-            res = squared_norm(X - np.dot(W, H+V)) / 2.
+            res = squared_norm(X - np.dot(W, H + V)) / 2.0
 
         if square_root:
             return np.sqrt(res * 2)
@@ -128,7 +131,7 @@ def _beta_divergence(X, W, H, V, beta, square_root=False):
         WH_data = _special_sparse_dot(W, H, V, X).data
         X_data = X.data
     else:
-        WH = np.dot(W, H+V)
+        WH = np.dot(W, H + V)
         WH_data = WH.ravel()
         X_data = X.ravel()
 
@@ -143,7 +146,7 @@ def _beta_divergence(X, W, H, V, beta, square_root=False):
     # generalized Kullback-Leibler divergence
     if beta == 1:
         # fast and memory efficient computation of np.sum(np.dot(W, H+V))
-        sum_WH = np.dot(np.sum(W, axis=0), np.sum(H+V, axis=1))
+        sum_WH = np.dot(np.sum(W, axis=0), np.sum(H + V, axis=1))
         # computes np.sum(X * log(X / WH)) only where X is nonzero
         div = X_data / WH_data
         res = np.dot(X_data, np.log(div))
@@ -162,7 +165,7 @@ def _beta_divergence(X, W, H, V, beta, square_root=False):
             # np.sum(np.dot(W, H) ** beta)
             sum_WH_beta = 0
             for i in range(X.shape[1]):
-                sum_WH_beta += np.sum(np.dot(W, H[:, i]+V[:, i]) ** beta)
+                sum_WH_beta += np.sum(np.dot(W, H[:, i] + V[:, i]) ** beta)
         else:
             sum_WH_beta = np.sum(WH ** beta)
 
@@ -188,39 +191,46 @@ def _special_sparse_dot(W, H, V, X):
         batch_size = max(n_components, n_vals // n_components)
         for start in range(0, n_vals, batch_size):
             batch = slice(start, start + batch_size)
-            dot_vals[batch] = np.multiply(W[ii[batch], :],
-                                          H.T[jj[batch], :] + V.T[jj[batch], :]).sum(axis=1)
+            dot_vals[batch] = np.multiply(
+                W[ii[batch], :], H.T[jj[batch], :] + V.T[jj[batch], :]
+            ).sum(axis=1)
 
         WH = sp.coo_matrix((dot_vals, (ii, jj)), shape=X.shape)
         return WH.tocsr()
     else:
-        return np.dot(W, H+V)
+        return np.dot(W, H + V)
+
 
 def _check_string_param(solver, regularization, beta_loss, init):
-    allowed_solver = ('cd', 'mu')
+    allowed_solver = ("cd", "mu")
     if solver not in allowed_solver:
         raise ValueError(
-            'Invalid solver parameter: got %r instead of one of %r' %
-            (solver, allowed_solver))
+            "Invalid solver parameter: got %r instead of one of %r"
+            % (solver, allowed_solver)
+        )
 
-    allowed_regularization = ('both', 'components', 'transformation', None)
+    allowed_regularization = ("both", "components", "transformation", None)
     if regularization not in allowed_regularization:
         raise ValueError(
-            'Invalid regularization parameter: got %r instead of one of %r' %
-            (regularization, allowed_regularization))
+            "Invalid regularization parameter: got %r instead of one of %r"
+            % (regularization, allowed_regularization)
+        )
 
     # 'mu' is the only solver that handles other beta losses than 'frobenius'
-    if solver != 'mu' and beta_loss not in (2, 'frobenius'):
+    if solver != "mu" and beta_loss not in (2, "frobenius"):
         raise ValueError(
-            'Invalid beta_loss parameter: solver %r does not handle beta_loss'
-            ' = %r' % (solver, beta_loss))
+            "Invalid beta_loss parameter: solver %r does not handle beta_loss"
+            " = %r" % (solver, beta_loss)
+        )
 
-    if solver == 'mu' and init == 'nndsvd':
-        warnings.warn("The multiplicative update ('mu') solver cannot update "
-                      "zeros present in the initialization, and so leads to "
-                      "poorer results when used jointly with init='nndsvd'. "
-                      "You may try init='nndsvda' or init='nndsvdar' instead.",
-                      UserWarning)
+    if solver == "mu" and init == "nndsvd":
+        warnings.warn(
+            "The multiplicative update ('mu') solver cannot update "
+            "zeros present in the initialization, and so leads to "
+            "poorer results when used jointly with init='nndsvd'. "
+            "You may try init='nndsvda' or init='nndsvdar' instead.",
+            UserWarning,
+        )
 
     beta_loss = _beta_loss_to_float(beta_loss)
     return beta_loss
@@ -228,21 +238,19 @@ def _check_string_param(solver, regularization, beta_loss, init):
 
 def _beta_loss_to_float(beta_loss):
     """Convert string beta_loss to float"""
-    allowed_beta_loss = {'frobenius': 2,
-                         'kullback-leibler': 1,
-                         'itakura-saito': 0}
+    allowed_beta_loss = {"frobenius": 2, "kullback-leibler": 1, "itakura-saito": 0}
     if isinstance(beta_loss, str) and beta_loss in allowed_beta_loss:
         beta_loss = allowed_beta_loss[beta_loss]
 
     if not isinstance(beta_loss, numbers.Number):
-        raise ValueError('Invalid beta_loss parameter: got %r instead '
-                         'of one of %r, or a float.' %
-                         (beta_loss, allowed_beta_loss.keys()))
+        raise ValueError(
+            "Invalid beta_loss parameter: got %r instead "
+            "of one of %r, or a float." % (beta_loss, allowed_beta_loss.keys())
+        )
     return beta_loss
 
 
-def _initialize_nmf(X, n_components, init=None, eps=1e-6,
-                    random_state=None):
+def _initialize_nmf(X, n_components, init=None, eps=1e-6, random_state=None):
     """Algorithms for NMF initialization.
 
     Computes an initial guess for the non-negative
@@ -304,26 +312,28 @@ def _initialize_nmf(X, n_components, init=None, eps=1e-6,
     check_non_negative(X, "NMF initialization")
     n_samples, n_features = X.shape
 
-    if (init is not None and init != 'random'
-            and n_components > min(n_samples, n_features)):
-        raise ValueError("init = '{}' can only be used when "
-                         "n_components <= min(n_samples, n_features)"
-                         .format(init))
+    if (
+        init is not None
+        and init != "random"
+        and n_components > min(n_samples, n_features)
+    ):
+        raise ValueError(
+            "init = '{}' can only be used when "
+            "n_components <= min(n_samples, n_features)".format(init)
+        )
 
     if init is None:
         if n_components <= min(n_samples, n_features):
-            init = 'nndsvd'
+            init = "nndsvd"
         else:
-            init = 'random'
+            init = "random"
 
     # Random initialization
-    if init == 'random':
+    if init == "random":
         avg = np.sqrt(X.mean() / n_components)
         rng = check_random_state(random_state)
-        H = avg * rng.randn(n_components, n_features).astype(X.dtype,
-                                                             copy=False)
-        W = avg * rng.randn(n_samples, n_components).astype(X.dtype,
-                                                            copy=False)
+        H = avg * rng.randn(n_components, n_features).astype(X.dtype, copy=False)
+        W = avg * rng.randn(n_samples, n_components).astype(X.dtype, copy=False)
         np.abs(H, out=H)
         np.abs(W, out=W)
         return W, H
@@ -381,14 +391,14 @@ def _initialize_nmf(X, n_components, init=None, eps=1e-6,
         H[H == 0] = abs(avg * rng.randn(len(H[H == 0])) / 100)
     else:
         raise ValueError(
-            'Invalid init parameter: got %r instead of one of %r' %
-            (init, (None, 'random', 'nndsvd', 'nndsvda', 'nndsvdar')))
+            "Invalid init parameter: got %r instead of one of %r"
+            % (init, (None, "random", "nndsvd", "nndsvda", "nndsvdar"))
+        )
 
     return W, H
 
 
-def _update_coordinate_descent(X, W, Ht, l1_reg, l2_reg, shuffle,
-                               random_state):
+def _update_coordinate_descent(X, W, Ht, l1_reg, l2_reg, shuffle, random_state):
     """Helper function for _fit_coordinate_descent
 
     Update W to minimize the objective function, iterating once over all
@@ -402,11 +412,11 @@ def _update_coordinate_descent(X, W, Ht, l1_reg, l2_reg, shuffle,
     XHt = safe_sparse_dot(X, Ht)
 
     # L2 regularization corresponds to increase of the diagonal of HHt
-    if l2_reg != 0.:
+    if l2_reg != 0.0:
         # adds l2_reg only on the diagonal
-        HHt.flat[::n_components + 1] += l2_reg
+        HHt.flat[:: n_components + 1] += l2_reg
     # L1 regularization corresponds to decrease of each element of XHt
-    if l1_reg != 0.:
+    if l1_reg != 0.0:
         XHt -= l1_reg
 
     if shuffle:
@@ -418,9 +428,21 @@ def _update_coordinate_descent(X, W, Ht, l1_reg, l2_reg, shuffle,
     return _update_cdnmf_fast(W, HHt, XHt, permutation)
 
 
-def _fit_coordinate_descent(X, W, H, tol=1e-4, max_iter=200, l1_reg_W=0,
-                            l1_reg_H=0, l2_reg_W=0, l2_reg_H=0, update_H=True,
-                            verbose=0, shuffle=False, random_state=None):
+def _fit_coordinate_descent(
+    X,
+    W,
+    H,
+    tol=1e-4,
+    max_iter=200,
+    l1_reg_W=0,
+    l1_reg_H=0,
+    l2_reg_W=0,
+    l2_reg_H=0,
+    update_H=True,
+    verbose=0,
+    shuffle=False,
+    random_state=None,
+):
     """Compute Non-negative Matrix Factorization (NMF) with Coordinate Descent
 
     The objective function is minimized with an alternating minimization of W
@@ -491,21 +513,23 @@ def _fit_coordinate_descent(X, W, H, tol=1e-4, max_iter=200, l1_reg_W=0,
     computer sciences 92.3: 708-721, 2009.
     """
     # so W and Ht are both in C order in memory
-    Ht = check_array(H.T, order='C')
-    X = check_array(X, accept_sparse='csr')
+    Ht = check_array(H.T, order="C")
+    X = check_array(X, accept_sparse="csr")
 
     rng = check_random_state(random_state)
 
     for n_iter in range(1, max_iter + 1):
-        violation = 0.
+        violation = 0.0
 
         # Update W
-        violation += _update_coordinate_descent(X, W, Ht, l1_reg_W,
-                                                l2_reg_W, shuffle, rng)
+        violation += _update_coordinate_descent(
+            X, W, Ht, l1_reg_W, l2_reg_W, shuffle, rng
+        )
         # Update H
         if update_H:
-            violation += _update_coordinate_descent(X.T, Ht, W, l1_reg_H,
-                                                    l2_reg_H, shuffle, rng)
+            violation += _update_coordinate_descent(
+                X.T, Ht, W, l1_reg_H, l2_reg_H, shuffle, rng
+            )
 
         if n_iter == 1:
             violation_init = violation
@@ -523,17 +547,18 @@ def _fit_coordinate_descent(X, W, H, tol=1e-4, max_iter=200, l1_reg_W=0,
 
     return W, Ht.T, V, n_iter
 
-# Update W for one of the datasets 
+
+# Update W for one of the datasets
 def _multiplicative_update_w(X, W, H, V, beta_loss, alpha, gamma, update_H=True):
     """update W in Multiplicative Update NMF"""
-    
-    regularisation = alpha * np.dot(W, np.dot(V,V.T))
-    
+
+    regularisation = alpha * np.dot(W, np.dot(V, V.T))
+
     if beta_loss == 2:
         # Numerator
         numerator = safe_sparse_dot(X, H.T + V.T)
         # Denominator
-        HHt = np.dot(H+V, H.T+V.T)
+        HHt = np.dot(H + V, H.T + V.T)
         denominator = np.dot(W, HHt) + regularisation
 
     else:
@@ -548,11 +573,11 @@ def _multiplicative_update_w(X, W, H, V, beta_loss, alpha, gamma, update_H=True)
             X_data = X
             # copy used in the Denominator
             WH = WH_safe_X.copy()
-            if beta_loss - 1. < 0:
+            if beta_loss - 1.0 < 0:
                 WH[WH == 0] = EPSILON
 
         # to avoid taking a negative power of zero
-        if beta_loss - 2. < 0:
+        if beta_loss - 2.0 < 0:
             WH_safe_X_data[WH_safe_X_data == 0] = EPSILON
 
         if beta_loss == 1:
@@ -570,12 +595,12 @@ def _multiplicative_update_w(X, W, H, V, beta_loss, alpha, gamma, update_H=True)
             WH_safe_X_data *= X_data
 
         # here numerator = dot(X * (dot(W, H) ** (beta_loss - 2)), H.T)
-        numerator = safe_sparse_dot(WH_safe_X, H.T+V.T)
+        numerator = safe_sparse_dot(WH_safe_X, H.T + V.T)
 
         # Denominator
         if beta_loss == 1:
-            H_sum = np.sum(H+V, axis=1)  # shape(n_components, )
-            denominator = H_sum[np.newaxis, :]  + regularisation
+            H_sum = np.sum(H + V, axis=1)  # shape(n_components, )
+            denominator = H_sum[np.newaxis, :] + regularisation
 
         else:
             # computation of WHHt = dot(dot(W, H) ** beta_loss - 1, H.T)
@@ -588,13 +613,12 @@ def _multiplicative_update_w(X, W, H, V, beta_loss, alpha, gamma, update_H=True)
                     if beta_loss - 1 < 0:
                         WHi[WHi == 0] = EPSILON
                     WHi **= beta_loss - 1
-                    WHHt[i, :] = np.dot(WHi, H.T+V.T)
+                    WHHt[i, :] = np.dot(WHi, H.T + V.T)
             else:
                 WH **= beta_loss - 1
                 WHHt = np.dot(WH, H.T + V.T)
-            denominator = WHHt  + regularisation
+            denominator = WHHt + regularisation
 
-    
     denominator[denominator == 0] = EPSILON
 
     numerator /= denominator
@@ -607,17 +631,17 @@ def _multiplicative_update_w(X, W, H, V, beta_loss, alpha, gamma, update_H=True)
     return delta_W
 
 
-# Update V for one of the datasets 
+# Update V for one of the datasets
 def _multiplicative_update_v(X, W, H, V, beta_loss, alpha, gamma, update_H=True):
     """update W in Multiplicative Update NMF"""
-    
-    regularisation = alpha * np.dot(np.dot(W.T,W),V)
-    
+
+    regularisation = alpha * np.dot(np.dot(W.T, W), V)
+
     if beta_loss == 2:
         # Numerator
-        numerator = safe_sparse_dot(W.T,X)
+        numerator = safe_sparse_dot(W.T, X)
         # Denominator
-        WHt = np.dot(W, H+V)
+        WHt = np.dot(W, H + V)
         denominator = np.dot(W.T, WHt) + regularisation
 
     else:
@@ -632,11 +656,11 @@ def _multiplicative_update_v(X, W, H, V, beta_loss, alpha, gamma, update_H=True)
             X_data = X
             # copy used in the Denominator
             WH = WH_safe_X.copy()
-            if beta_loss - 1. < 0:
+            if beta_loss - 1.0 < 0:
                 WH[WH == 0] = EPSILON
 
         # to avoid taking a negative power of zero
-        if beta_loss - 2. < 0:
+        if beta_loss - 2.0 < 0:
             WH_safe_X_data[WH_safe_X_data == 0] = EPSILON
 
         if beta_loss == 1:
@@ -659,7 +683,7 @@ def _multiplicative_update_v(X, W, H, V, beta_loss, alpha, gamma, update_H=True)
         # Denominator
         if beta_loss == 1:
             Wsum = np.sum(W, axis=0)  # shape(n_components, )
-            denominator = Wsum[:, np.newaxis]  + regularisation
+            denominator = Wsum[:, np.newaxis] + regularisation
 
         else:
             # computation of WHHt = dot(dot(W, H) ** beta_loss - 1, H.T)
@@ -668,7 +692,7 @@ def _multiplicative_update_v(X, W, H, V, beta_loss, alpha, gamma, update_H=True)
                 # (compute row by row, avoiding the dense matrix WH)
                 WHHt = np.empty(W.shape)
                 for i in range(X.shape[0]):
-                    WHi = np.dot(W[i, :], H+V)
+                    WHi = np.dot(W[i, :], H + V)
                     if beta_loss - 1 < 0:
                         WHi[WHi == 0] = EPSILON
                     WHi **= beta_loss - 1
@@ -676,7 +700,7 @@ def _multiplicative_update_v(X, W, H, V, beta_loss, alpha, gamma, update_H=True)
             else:
                 WH **= beta_loss - 1
                 WHHt = np.dot(W.T, WH)
-            denominator = WHHt  + regularisation
+            denominator = WHHt + regularisation
 
     denominator[denominator == 0] = EPSILON
 
@@ -697,7 +721,7 @@ def _multiplicative_update_h(X, W, H, V, beta_loss, alpha, gamma):
         denominator = 0
         for i in range(len(X)):
             numerator += safe_sparse_dot(W[i].T, X[i])
-            denominator += np.dot(np.dot(W[i].T, W[i]), H+V[i])
+            denominator += np.dot(np.dot(W[i].T, W[i]), H + V[i])
     else:
         numerator = 0
         denominator = 0
@@ -712,11 +736,11 @@ def _multiplicative_update_h(X, W, H, V, beta_loss, alpha, gamma):
                 X_data = X
                 # copy used in the Denominator
                 WH = WH_safe_X.copy()
-                if beta_loss - 1. < 0:
+                if beta_loss - 1.0 < 0:
                     WH[WH == 0] = EPSILON
 
             # to avoid division by zero
-            if beta_loss - 2. < 0:
+            if beta_loss - 2.0 < 0:
                 WH_safe_X_data[WH_safe_X_data == 0] = EPSILON
 
             if beta_loss == 1:
@@ -739,7 +763,7 @@ def _multiplicative_update_h(X, W, H, V, beta_loss, alpha, gamma):
             # Denominator
             if beta_loss == 1:
                 W_sum = np.sum(W[i], axis=0)  # shape(n_components, )
-                W_sum[W_sum == 0] = 1.
+                W_sum[W_sum == 0] = 1.0
                 denominator += W_sum[:, np.newaxis]
 
             # beta_loss not in (1, 2)
@@ -772,9 +796,18 @@ def _multiplicative_update_h(X, W, H, V, beta_loss, alpha, gamma):
     return delta_H
 
 
-def _fit_multiplicative_update(X, W, H, V, beta_loss='frobenius',
-                               max_iter=200, tol=1e-4,
-                               alpha=1.0, update_H=True, verbose=0):
+def _fit_multiplicative_update(
+    X,
+    W,
+    H,
+    V,
+    beta_loss="frobenius",
+    max_iter=200,
+    tol=1e-4,
+    alpha=1.0,
+    update_H=True,
+    verbose=0,
+):
     """Compute Non-negative Matrix Factorization with Multiplicative Update
 
     The objective function is _beta_divergence(X, WH) and is minimized with an
@@ -807,7 +840,7 @@ def _fit_multiplicative_update(X, W, H, V, beta_loss='frobenius',
         Tolerance of the stopping condition.
 
     alpha: float, default: 1
-        Regularisation parameter for dataset specific components 
+        Regularisation parameter for dataset specific components
 
     update_H : boolean, default: True
         Set to True, both W and H will be estimated from initial guesses.
@@ -841,37 +874,54 @@ def _fit_multiplicative_update(X, W, H, V, beta_loss='frobenius',
 
     # gamma for Maximization-Minimization (MM) algorithm [Fevotte 2011]
     if beta_loss < 1:
-        gamma = 1. / (2. - beta_loss)
+        gamma = 1.0 / (2.0 - beta_loss)
     elif beta_loss > 2:
-        gamma = 1. / (beta_loss - 1.)
+        gamma = 1.0 / (beta_loss - 1.0)
     else:
-        gamma = 1.
+        gamma = 1.0
 
     # used for the convergence criterion
     error_at_init = 0
     for i in range(len(X)):
-        error_at_init += _beta_divergence(X[i], W[i], H, V[i], beta_loss, square_root=True)
+        error_at_init += _beta_divergence(
+            X[i], W[i], H, V[i], beta_loss, square_root=True
+        )
     previous_error = error_at_init
 
-   
     for n_iter in range(1, max_iter + 1):
 
         for i in range(len(X)):
             # update W
-            delta_W = _multiplicative_update_w(X[i], W[i], H, V[i], beta_loss, alpha, gamma,)
+            delta_W = _multiplicative_update_w(
+                X[i],
+                W[i],
+                H,
+                V[i],
+                beta_loss,
+                alpha,
+                gamma,
+            )
             W[i] *= delta_W
 
             # necessary for stability with beta_loss < 1
             if beta_loss < 1:
-                W[i][W[i] < np.finfo(np.float64).eps] = 0.
+                W[i][W[i] < np.finfo(np.float64).eps] = 0.0
 
-            # update V 
-            delta_V =  _multiplicative_update_v(X[i], W[i], H, V[i], beta_loss, alpha, gamma,)
+            # update V
+            delta_V = _multiplicative_update_v(
+                X[i],
+                W[i],
+                H,
+                V[i],
+                beta_loss,
+                alpha,
+                gamma,
+            )
             V[i] *= delta_V
 
             # necessary for stability with beta_loss < 1
             if beta_loss < 1:
-                V[i][V[i] < np.finfo(np.float64).eps] = 0.
+                V[i][V[i] < np.finfo(np.float64).eps] = 0.0
 
         # update H
         if update_H:
@@ -880,18 +930,22 @@ def _fit_multiplicative_update(X, W, H, V, beta_loss='frobenius',
 
             # necessary for stability with beta_loss < 1
             if beta_loss <= 1:
-                H[H < np.finfo(np.float64).eps] = 0.
+                H[H < np.finfo(np.float64).eps] = 0.0
 
         # test convergence criterion every 10 iterations
         if tol > 0 and n_iter % 10 == 0:
             error = 0
             for i in range(len(X)):
-                error += _beta_divergence(X[i], W[i], H, V[i], beta_loss, square_root=True)
+                error += _beta_divergence(
+                    X[i], W[i], H, V[i], beta_loss, square_root=True
+                )
 
             if verbose:
                 iter_time = time.time()
-                print("Epoch %02d reached after %.3f seconds, error: %f" %
-                      (n_iter, iter_time - start_time, error))
+                print(
+                    "Epoch %02d reached after %.3f seconds, error: %f"
+                    % (n_iter, iter_time - start_time, error)
+                )
 
             if (previous_error - error) / error_at_init < tol:
                 break
@@ -900,19 +954,31 @@ def _fit_multiplicative_update(X, W, H, V, beta_loss='frobenius',
     # do not print if we have already printed in the convergence test
     if verbose and (tol == 0 or n_iter % 10 != 0):
         end_time = time.time()
-        print("Epoch %02d reached after %.3f seconds." %
-              (n_iter, end_time - start_time))
+        print(
+            "Epoch %02d reached after %.3f seconds." % (n_iter, end_time - start_time)
+        )
 
     return W, H, V, n_iter
 
 
-def integrative_non_negative_factorization(X, W=None, H=None, V=None, n_components=None,
-                               init=None, update_H=True, solver='mu',
-                               beta_loss=2, tol=1e-4,
-                               max_iter=200, alpha=1.0, random_state=None,
-                               verbose=0, shuffle=False):
-    
-    
+def integrative_non_negative_factorization(
+    X,
+    W=None,
+    H=None,
+    V=None,
+    n_components=None,
+    init=None,
+    update_H=True,
+    solver="mu",
+    beta_loss=2,
+    tol=1e-4,
+    max_iter=200,
+    alpha=1.0,
+    random_state=None,
+    verbose=0,
+    shuffle=False,
+):
+
     r"""Integrative Compute Non-negative Matrix Factorization (iNMF)
 
     https://www.ncbi.nlm.nih.gov/pubmed/26377073
@@ -1018,7 +1084,7 @@ def integrative_non_negative_factorization(X, W=None, H=None, V=None, n_componen
     max_iter : integer, default: 200
         Maximum number of iterations before timing out.
 
-    alpha: float, default: 1 
+    alpha: float, default: 1
         Regularisation for dataset specific factors
 
     random_state : int, RandomState instance, default=None
@@ -1064,87 +1130,116 @@ def integrative_non_negative_factorization(X, W=None, H=None, V=None, n_componen
     """
 
     for i in range(len(X)):
-        X[i] = check_array(X[i], accept_sparse=('csr', 'csc'), dtype=[np.float64, np.float32])
+        X[i] = check_array(
+            X[i], accept_sparse=("csr", "csc"), dtype=[np.float64, np.float32]
+        )
         check_non_negative(X[i], "NMF (input X)")
 
         # beta_loss = _check_string_param(solver, regularization, beta_loss, init)
 
         if X[i].min() == 0 and beta_loss <= 0:
-            raise ValueError("When beta_loss <= 0 and X contains zeros, "
-                         "the solver may diverge. Please add small values to "
-                         "X, or use a positive beta_loss.")
+            raise ValueError(
+                "When beta_loss <= 0 and X contains zeros, "
+                "the solver may diverge. Please add small values to "
+                "X, or use a positive beta_loss."
+            )
 
     n_samples = [Xk.shape[0] for Xk in X]
     n_features = [Xk.shape[1] for Xk in X]
 
-    if not np.array_equal(n_features,np.ones(len(X))*n_features[0]):
+    if not np.array_equal(n_features, np.ones(len(X)) * n_features[0]):
         raise ValueError("All matrices must have the same number of features")
-
 
     if n_components is None:
         n_components = n_features
 
     if not isinstance(n_components, numbers.Integral) or n_components <= 0:
-        raise ValueError("Number of components must be a positive integer;"
-                         " got (n_components=%r)" % n_components)
+        raise ValueError(
+            "Number of components must be a positive integer;"
+            " got (n_components=%r)" % n_components
+        )
     if not isinstance(max_iter, numbers.Integral) or max_iter < 0:
-        raise ValueError("Maximum number of iterations must be a positive "
-                         "integer; got (max_iter=%r)" % max_iter)
+        raise ValueError(
+            "Maximum number of iterations must be a positive "
+            "integer; got (max_iter=%r)" % max_iter
+        )
     if not isinstance(tol, numbers.Number) or tol < 0:
-        raise ValueError("Tolerance for stopping criteria must be "
-                         "positive; got (tol=%r)" % tol)
+        raise ValueError(
+            "Tolerance for stopping criteria must be " "positive; got (tol=%r)" % tol
+        )
 
     # check W and H, or initialize them
-    if init == 'custom' and update_H:
+    if init == "custom" and update_H:
         _check_init(H, (n_components, n_features[0]), "NMF (input H)")
         for count in range(len(X)):
             _check_init(W[count], (n_samples[count], n_components), "NMF (input W)")
             if H.dtype != X[count].dtype or W[count].dtype != X[count].dtype:
-                raise TypeError("H and W should have the same dtype as X. Got "
-                                "H.dtype = {} and W.dtype = {}."
-                                .format(H.dtype, W[count].dtype))
+                raise TypeError(
+                    "H and W should have the same dtype as X. Got "
+                    "H.dtype = {} and W.dtype = {}.".format(H.dtype, W[count].dtype)
+                )
     elif not update_H:
         _check_init(H, (n_components, n_features[0]), "NMF (input H)")
         for count in range(len(X)):
             if H.dtype != X[count].dtype:
-                raise TypeError("H should have the same dtype as X. Got "
-                                "H.dtype = {}.".format(H.dtype,))
+                raise TypeError(
+                    "H should have the same dtype as X. Got "
+                    "H.dtype = {}.".format(
+                        H.dtype,
+                    )
+                )
         # 'mu' solver should not be initialized by zeros
-        if solver == 'mu':
+        if solver == "mu":
             W = list()
             for i in range(len(X)):
                 avg = np.sqrt(X[i].mean() / n_components)
                 W.append(np.full((n_samples[i], n_components), avg, dtype=X[i].dtype))
         else:
-            W = [np.zeros((n_samples[i], n_components), dtype=X.dtype) for i in range(len(X))]
-    
+            W = [
+                np.zeros((n_samples[i], n_components), dtype=X.dtype)
+                for i in range(len(X))
+            ]
+
     else:
         W = list()
         V = list()
         for i in range(len(X)):
-            Wk, Vk = _initialize_nmf(X[i], n_components, init=init, random_state=random_state)
+            Wk, Vk = _initialize_nmf(
+                X[i], n_components, init=init, random_state=random_state
+            )
             W.append(Wk)
-            V.append(Vk/2.0)
-        # Estimate H by the average of dataset factorisation 
-        H = sum(V)/(len(V)*2.0)
+            V.append(Vk / 2.0)
+        # Estimate H by the average of dataset factorisation
+        H = sum(V) / (len(V) * 2.0)
 
-    if solver == 'cd':
-        W, H, V, n_iter  = _fit_coordinate_descent(X, W, H, V, tol, max_iter, alpha,
-                                               update_H=update_H,
-                                               verbose=verbose,
-                                               shuffle=shuffle,
-                                               random_state=random_state)
-    elif solver == 'mu':
-        W, H, V, n_iter = _fit_multiplicative_update(X, W, H, V, beta_loss, max_iter,
-                                                  tol, alpha, update_H,
-                                                  verbose)
+    if solver == "cd":
+        W, H, V, n_iter = _fit_coordinate_descent(
+            X,
+            W,
+            H,
+            V,
+            tol,
+            max_iter,
+            alpha,
+            update_H=update_H,
+            verbose=verbose,
+            shuffle=shuffle,
+            random_state=random_state,
+        )
+    elif solver == "mu":
+        W, H, V, n_iter = _fit_multiplicative_update(
+            X, W, H, V, beta_loss, max_iter, tol, alpha, update_H, verbose
+        )
 
     else:
         raise ValueError("Invalid solver parameter '%s'." % solver)
 
     if n_iter == max_iter and tol > 0:
-        warnings.warn("Maximum number of iterations %d reached. Increase it to"
-                      " improve convergence." % max_iter, ConvergenceWarning)
+        warnings.warn(
+            "Maximum number of iterations %d reached. Increase it to"
+            " improve convergence." % max_iter,
+            ConvergenceWarning,
+        )
 
     return W, H, V, n_iter
 
@@ -1275,11 +1370,22 @@ class INMF(TransformerMixin, BaseEstimator):
     Fevotte, C., & Idier, J. (2011). Algorithms for nonnegative matrix
     factorization with the beta-divergence. Neural Computation, 23(9).
     """
+
     @_deprecate_positional_args
-    def __init__(self, n_components=None, *, init=None, solver='mu',
-                 beta_loss=2, tol=1e-4, max_iter=2000,
-                 random_state=None, alpha=1., verbose=0,
-                 shuffle=False):
+    def __init__(
+        self,
+        n_components=None,
+        *,
+        init=None,
+        solver="mu",
+        beta_loss=2,
+        tol=1e-4,
+        max_iter=2000,
+        random_state=None,
+        alpha=1.0,
+        verbose=0,
+        shuffle=False
+    ):
         self.n_components = n_components
         self.init = init
         self.solver = solver
@@ -1292,7 +1398,7 @@ class INMF(TransformerMixin, BaseEstimator):
         self.shuffle = shuffle
 
     def _more_tags(self):
-        return {'requires_positive_X': True}
+        return {"requires_positive_X": True}
 
     def fit_transform(self, X, y=None, W=None, H=None, V=None):
         """Learn a NMF model for the data X and returns the transformed data.
@@ -1311,10 +1417,10 @@ class INMF(TransformerMixin, BaseEstimator):
 
         H : array-like, shape (n_components, n_features)
             If init='custom', it is used as initial guess for the solution.
-        
+
         V: list of array-like, shape (n_components, n_features)
            If init='custom', it is used as initial guess for the solution.
-        
+
         Returns
         -------
         W : list of array, shape (n_samples, n_components)
@@ -1323,29 +1429,43 @@ class INMF(TransformerMixin, BaseEstimator):
            shared factors
         V: list of array, shape (n_components, n_features)
            dataset specific factors
-        
+
         """
 
         for i in range(len(X)):
-            X[i] = self._validate_data(X[i], accept_sparse=('csr', 'csc'), dtype=[np.float64, np.float32])
+            X[i] = self._validate_data(
+                X[i], accept_sparse=("csr", "csc"), dtype=[np.float64, np.float32]
+            )
 
         W, H, V, n_iter_ = integrative_non_negative_factorization(
-            X=X, W=W, H=H, n_components=self.n_components, init=self.init,
-            update_H=True, solver=self.solver, beta_loss=self.beta_loss,
-            tol=self.tol, max_iter=self.max_iter, alpha=self.alpha,
-            random_state=self.random_state, verbose=self.verbose,
-            shuffle=self.shuffle)
+            X=X,
+            W=W,
+            H=H,
+            n_components=self.n_components,
+            init=self.init,
+            update_H=True,
+            solver=self.solver,
+            beta_loss=self.beta_loss,
+            tol=self.tol,
+            max_iter=self.max_iter,
+            alpha=self.alpha,
+            random_state=self.random_state,
+            verbose=self.verbose,
+            shuffle=self.shuffle,
+        )
 
         self.reconstruction_err_ = 0
         for i in range(len(X)):
-            self.reconstruction_err_ += _beta_divergence(X[i], W[i], H, V[i], self.beta_loss, square_root=True)
+            self.reconstruction_err_ += _beta_divergence(
+                X[i], W[i], H, V[i], self.beta_loss, square_root=True
+            )
 
         self.n_components_ = H.shape[0]
         self.components_ = H
         self.n_iter_ = n_iter_
 
-        print('Reconstruction error {}'.format(self.reconstruction_err_))
-        
+        print("Reconstruction error {}".format(self.reconstruction_err_))
+
         return W, H, V
 
     def fit(self, X, y=None, **params):
@@ -1380,11 +1500,22 @@ class INMF(TransformerMixin, BaseEstimator):
         """
 
         W, _, _, n_iter_ = integrative_non_negative_factorization(
-            X=X, W=None, H=self.components_, V=None, n_components=self.n_components_,
-            init=self.init, update_H=False, solver=self.solver,
-            beta_loss=self.beta_loss, tol=self.tol, max_iter=self.max_iter,
-            alpha=self.alpha, random_state=self.random_state, verbose=self.verbose,
-            shuffle=self.shuffle)
+            X=X,
+            W=None,
+            H=self.components_,
+            V=None,
+            n_components=self.n_components_,
+            init=self.init,
+            update_H=False,
+            solver=self.solver,
+            beta_loss=self.beta_loss,
+            tol=self.tol,
+            max_iter=self.max_iter,
+            alpha=self.alpha,
+            random_state=self.random_state,
+            verbose=self.verbose,
+            shuffle=self.shuffle,
+        )
 
         return W
 
