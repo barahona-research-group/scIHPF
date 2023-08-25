@@ -16,3 +16,6 @@ by Thomas Wong and Mauricio Barahona
 - scanorama: https://github.com/brianhie/scanorama
 
 
+## Issues 
+
+Please refer to [Github Page of scHPF](https://schpf.readthedocs.io/en/latest/install.html#numba-compatibility) for installing numba or other Python dependencies. It is documented that for incorrect combinations of numba and Python versions, the optimisation algorithm will fail. 
